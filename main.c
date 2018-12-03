@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <signal.h>
 
 /*
 
@@ -28,8 +29,19 @@
     老衰死として、一ステップごとにcowとlionの種族の炭素数を一定値減らす。
 */
 
+/*
+
+    遊び方
+
+    下の各種パラメタはこのままで食物連鎖のバランスを取ってくれます
+    （試してみたランダムシードではの話ですが）
+
+    一番下のmain関数内で個体のバランスをある時点で崩してみると面白いです
+
+*/
+
 // random seed
-const unsigned long long SEED = 20181104;
+const unsigned long long SEED = 20181211;
 
 // フィールドのサイズ
 const long long FIELD_WIDTH  = 400;
@@ -37,8 +49,8 @@ const long long FIELD_HEIGHT = 400;
 
 // 初期状態の個体数
 const long long INIT_NUM_GRASS = 20000;
-const long long INIT_NUM_COW   = 1000;
-const long long INIT_NUM_LION  = 600;
+const long long INIT_NUM_COW   = 1400;
+const long long INIT_NUM_LION  = 200;
 
 // 死滅、誕生基準の一個体炭素数 
 // 初期の一個体炭素数がこの中間になるよう種族の炭素数を設定する
@@ -46,16 +58,16 @@ const long long UPPER_NUM_GRASS = 400;
 const long long UNDER_NUM_GRASS = 200;
 const long long UPPER_NUM_COW   = 4000;
 const long long UNDER_NUM_COW   = 2000;
-const long long UPPER_NUM_LION  = 8000;
-const long long UNDER_NUM_LION  = 4000;
+const long long UPPER_NUM_LION  = 16000;
+const long long UNDER_NUM_LION  = 8000;
 
 // 1ステップごとに老衰する分(grassに渡される炭素)
 const long long DECAY_COW = 5;
 const long long DECAY_LION = 20;
 
 // View Width, Height
-const long long VIEW_HEIGHT = 40;
-const long long VIEW_WIDTH  = 40;
+const long long VIEW_HEIGHT = 30;
+const long long VIEW_WIDTH  = 30;
 
 // lib
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
@@ -115,7 +127,8 @@ void print_field(FILE *fp,long long field[FIELD_HEIGHT][FIELD_WIDTH][3],int day)
     fprintf(fp,"-+\n");
 
     // 位置調整 
-    fprintf(fp,"\e[69F");
+    fprintf(fp,"\e[29F");
+    fprintf(fp,"\e[%lldF",VIEW_HEIGHT);
 }
 
 void move(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
@@ -292,6 +305,9 @@ void print_pyramid(FILE *fp,long long *grass_sum, long long *cow_sum, long long 
     fprintf(fp,"grass:%15lld\e[13F",*c_grass);
 }
 
+void abrt(int sig);
+volatile sig_atomic_t e_flag = 0;
+
 int main(int argc, char const *argv[]){
     long long grass   = INIT_NUM_GRASS;
     long long c_grass = (UPPER_NUM_GRASS+UNDER_NUM_GRASS)/2*INIT_NUM_GRASS;
@@ -310,11 +326,16 @@ int main(int argc, char const *argv[]){
 
     system("clear");
     int day = 0;
-    while(1){
+
+    if( signal(SIGINT, abrt ) == SIG_ERR){
+        exit(1);
+    }
+    // FILE *f = fopen("data.csv","w");
+    while(!e_flag){
         day ++;
         fprintf(fp,"day %d",day);
         print_pyramid(fp,&grass,&cows,&lions,&c_grass,&c_cows,&c_lions);
-        // print_field(fp,field,day);
+        print_field(fp,field,day);
         move(field);
         eat(field,&grass,&cows,&lions,&c_grass,&c_cows,&c_lions);
         reprduce(field,&grass,&cows,&lions,&c_grass,&c_cows,&c_lions);
@@ -325,12 +346,53 @@ int main(int argc, char const *argv[]){
         if(cows <= 0 || grass <= 0 || lions <= 0) break;
 
         // 突然の個体増減
-        if(day == 2500){
-            lions += 100;
-            c_lions += 200*(UNDER_NUM_LION+UPPER_NUM_LION)/2;
+        if(day == 4000){
+            // cow の数を増やす
+            int num = 1000;
+            cows += num;
+            // 同時にcow種族がもつ炭素数もふやす
+            c_cows += num*(UNDER_NUM_COW+UPPER_NUM_COW)/2;
+            // フィールドに追加
+            for(int i = 0;i < num;i ++){
+                int x = rand()%FIELD_WIDTH;
+                int y = rand()%FIELD_HEIGHT;
+                field[y][x][1] ++; // 2: lion, 1: cow, 0: grass 
+            }
+
+            // lion の数を増やす
+            // int num = 1000;
+            // lions += num;
+            // 同時にライオン種族がもつ炭素数もふやす
+            // c_lions += num*(UNDER_NUM_LION+UPPER_NUM_LION)/2;
+            // フィールドに追加
+            // for(int i = 0;i < num;i ++){
+                // int x = rand()%FIELD_WIDTH;
+                // int y = rand()%FIELD_HEIGHT;
+                // field[y][x][2] ++; // 2: lion, 1: cow, 0: grass 
+            // }
+
+            // grass の数を減らす 
+            // int num = 7000;
+            // grass -= num;
+            // 同時にgrassが持つ炭素数も増やす
+            // c_grass -= num*(UNDER_NUM_GRASS+UPPER_NUM_GRASS)/2;
+            // フィールドから削除
+            // for(int i = 0;i < num;i ++){
+                // kill_in_field(field,0); // 2: lion, 1: cow, 0: grass 
+            // }
         }
+
+        // fprintf(f,"%d, %lld, %lld, %lld\n",day,lions,cows,grass);
+
     }
     print_field(fp,field,day);
     print_pyramid(fp,&grass,&cows,&lions,&c_grass,&c_cows,&c_lions);
+    system("clear");
+    // fclose(f);
+    // fprintf(fp,"\n\nfile closed!\n");
     return 0;
+}
+
+void abrt(int sig){
+    e_flag = 1;
 }

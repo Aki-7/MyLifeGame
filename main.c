@@ -43,16 +43,16 @@
 */
 
 // random seed
-const unsigned long long SEED = 20181211;
+const unsigned long long SEED = 20181204;
 
 // フィールドのサイズ
 const long long FIELD_WIDTH  = 400;
 const long long FIELD_HEIGHT = 400; 
 
 // 初期状態の個体数
-const long long INIT_NUM_GRASS = 20000;
-const long long INIT_NUM_COW   = 1400;
-const long long INIT_NUM_LION  = 200;
+const long long INIT_NUM_GRASS = 10000;
+const long long INIT_NUM_COW   = 700;
+const long long INIT_NUM_LION  = 50;
 
 // 死滅、誕生基準の一個体炭素数 
 // 初期の一個体炭素数がこの中間になるよう種族の炭素数を設定する
@@ -277,20 +277,20 @@ void hunger(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, 
     }
 }
 
-// 老死
+// 老死 ここ二乗に比例させたらいいかんじになった
 void decay(long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     // cow の老衰
-    *c_cows  -= DECAY_COW*(*cow_sum);
-    *c_grass += DECAY_COW*(*cow_sum);
+    *c_cows  -= DECAY_COW*(*cow_sum)*(*cow_sum)/INIT_NUM_COW;
+    *c_grass += DECAY_COW*(*cow_sum)*(*cow_sum)/INIT_NUM_COW;
     // lion の老衰
-    *c_lions -= DECAY_LION*(*lion_sum);
-    *c_grass += DECAY_LION*(*lion_sum);
+    *c_lions -= DECAY_LION*(*lion_sum)*(*lion_sum)/INIT_NUM_LION;
+    *c_grass += DECAY_LION*(*lion_sum)*(*lion_sum)/INIT_NUM_LION;
 }
 
 // length の長さのbarを現カーソル位置から表示
-void print_bar(FILE *fp,int length,const char *color){
+void print_bar(FILE *fp,long long length,const char *color){
     fprintf(fp,"%s",color);
-    for(int i = 0;i < length;i ++){
+    for(long long i = 0;i < length;i ++){
         fprintf(fp," ");
     }
     fprintf(fp,"\e[m");
@@ -298,10 +298,10 @@ void print_bar(FILE *fp,int length,const char *color){
 
 // 食物連鎖のピラミッドを表示
 void print_pyramid(FILE *fp,long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
-    int sum = *grass_sum + *cow_sum + *lion_sum;
-    int grass = *grass_sum * 150 / sum;
-    int cow   = *cow_sum   * 150 / sum;
-    int lion  = *lion_sum  * 150 / sum;
+    long long sum = *grass_sum + *cow_sum + *lion_sum;
+    long long grass = 1 + *grass_sum * 150 / sum;
+    long long cow   = 1 + *cow_sum   * 150 / sum;
+    long long lion  = 1 + *lion_sum  * 150 / sum;
 
     fprintf(fp,"\e[2E各個体数");
     fprintf(fp,"\e[1E");
@@ -353,6 +353,7 @@ int main(int argc, char const *argv[]){
     // FILE *f = fopen("data.csv","w");
     while(!e_flag){
         day ++;
+        fprintf(fp,"\e[0J");
         fprintf(fp,"day %d",day);
         print_pyramid(fp,&grass,&cows,&lions,&c_grass,&c_cows,&c_lions);
         print_field(fp,field,day);
@@ -366,9 +367,9 @@ int main(int argc, char const *argv[]){
         if(cows <= 0 || grass <= 0 || lions <= 0) break;
 
         // 突然の個体増減
-        if(day == 4000){
+        if(day == 2000){
             // cow の数を増やす
-            int num = 1000;
+            int num = 3000;
             cows += num;
             // 同時にcow種族がもつ炭素数もふやす
             c_cows += num*(UNDER_NUM_COW+UPPER_NUM_COW)/2;
@@ -378,28 +379,43 @@ int main(int argc, char const *argv[]){
                 int y = rand()%FIELD_HEIGHT;
                 field[y][x][1] ++; // 2: lion, 1: cow, 0: grass 
             }
-
+        }
+        if(day == 4000){
             // lion の数を増やす
-            // int num = 1000;
-            // lions += num;
+            int num = 1000;
+            lions += num;
             // 同時にライオン種族がもつ炭素数もふやす
-            // c_lions += num*(UNDER_NUM_LION+UPPER_NUM_LION)/2;
+            c_lions += num*(UNDER_NUM_LION+UPPER_NUM_LION)/2;
             // フィールドに追加
-            // for(int i = 0;i < num;i ++){
-                // int x = rand()%FIELD_WIDTH;
-                // int y = rand()%FIELD_HEIGHT;
-                // field[y][x][2] ++; // 2: lion, 1: cow, 0: grass 
-            // }
-
+            for(int i = 0;i < num;i ++){
+                int x = rand()%FIELD_WIDTH;
+                int y = rand()%FIELD_HEIGHT;
+                field[y][x][2] ++; // 2: lion, 1: cow, 0: grass 
+            }
+        }
+        if(day == 6000){
+            // cow の数を増やす
+            int num = 5000;
+            cows += num;
+            // 同時にcow種族がもつ炭素数もふやす
+            c_cows += num*(UNDER_NUM_COW+UPPER_NUM_COW)/2;
+            // フィールドに追加
+            for(int i = 0;i < num;i ++){
+                int x = rand()%FIELD_WIDTH;
+                int y = rand()%FIELD_HEIGHT;
+                field[y][x][1] ++; // 2: lion, 1: cow, 0: grass 
+            }
+        }
+        if(day == 8000){
             // grass の数を減らす 
-            // int num = 7000;
-            // grass -= num;
+            int num = 15000;
+            grass -= num;
             // 同時にgrassが持つ炭素数も増やす
-            // c_grass -= num*(UNDER_NUM_GRASS+UPPER_NUM_GRASS)/2;
+            c_grass -= num*(UNDER_NUM_GRASS+UPPER_NUM_GRASS)/2;
             // フィールドから削除
-            // for(int i = 0;i < num;i ++){
-                // kill_in_field(field,0); // 2: lion, 1: cow, 0: grass 
-            // }
+            for(int i = 0;i < num;i ++){
+                kill_in_field(field,0); // 2: lion, 1: cow, 0: grass 
+            }
         }
 
         // fprintf(f,"%d, %lld, %lld, %lld\n",day,lions,cows,grass);

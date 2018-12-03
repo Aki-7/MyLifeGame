@@ -12,7 +12,7 @@
     フィールド上の炭素量が一定になるように、
     grass, cow, lion の三種の個体の食物連鎖を考える。
 
-    cowはgrassをlionはcowを食べ、grassは動物の死骸を栄養とする。(炭素の移動)
+    cowはgrassを,lionはcowを食べ、grassは動物の死骸を栄養とする。(炭素の移動)
     それぞれの個体はフィールド場でランダムに動き回る。(grassは動かない)
     個体は一ステップで周りとその場所の9箇所のいずれかに移動する。
 
@@ -74,6 +74,9 @@ const long long VIEW_WIDTH  = 30;
 // lib
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
 
+// field[FIELD_HEIGHT][FIELD_WIDTH][3]
+// フィールドについてmain関数内で簡単に説明
+
 // フィードの初期化
 void init_field(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
     srand(SEED);
@@ -95,9 +98,9 @@ void init_field(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
     }
 }
 
+// 1000x1000は表示不可能なので中心のVIEW_HEIGHTxVIEW_WIDTHを表示
 void print_field(FILE *fp,long long field[FIELD_HEIGHT][FIELD_WIDTH][3],int day){
 
-    // 1000x1000は表示不可能なので中心のVIEW_HEIGHTxVIEW_WIDTHを表示
     fprintf(fp,"\e[18E");
     fprintf(fp,"中心の一部を表示中\e[1E");
     // 上辺
@@ -134,9 +137,12 @@ void print_field(FILE *fp,long long field[FIELD_HEIGHT][FIELD_WIDTH][3],int day)
     fprintf(fp,"\e[%lldF",VIEW_HEIGHT);
 }
 
+// 各個体が周囲に移動、またはその場に停留する
 void move(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
     long long ***buf = (long long***)malloc(sizeof(long long**)*FIELD_HEIGHT);
 
+    // 移動後のフィールドの一時保存先を確保
+    // メモリが大きすぎるのでmallocで確保
     for(long long y = 0;y < FIELD_HEIGHT;y ++){
         buf[y] = (long long**)malloc(sizeof(long long*)*FIELD_WIDTH);
         for(long long x = 0;x < FIELD_WIDTH;x ++){
@@ -147,6 +153,7 @@ void move(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
         }
     }
 
+    // 移動
     for(long long y = 0;y < FIELD_HEIGHT;y ++){
         for(long long x = 0;x < FIELD_WIDTH;x ++){
             for(long long i = 1;i < 3;i ++){
@@ -163,6 +170,7 @@ void move(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
         }
     }
 
+    // bufからfieldへコピー　かつbufの開放
     for(long long y = 0;y < FIELD_HEIGHT;y ++){
         for(long long x = 0;x < FIELD_WIDTH;x ++){
             for(long long i = 1;i < 3;i ++){
@@ -175,13 +183,14 @@ void move(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
     free(buf);
 }
 
+// 重なっている捕食、被捕食者間のお食事タイム
 void eat(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     long long c_per_grass = (*c_grass)/(*grass_sum);
     long long c_per_cow   = (*c_cows)/(*cow_sum);
     
     for(long long y = 0;y < FIELD_HEIGHT;y++){
         for(long long x = 0;x < FIELD_WIDTH;x++){
-            // 各地点において
+            // 各地点での
             // 各種族の数
             long long grass = field[y][x][0];
             long long cows  = field[y][x][1];
@@ -203,6 +212,7 @@ void eat(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, lon
     }
 }
 
+// 生殖 １個体炭素数が一定値（UPPER_NUM_???）を超えないようにふえる
 void reprduce(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     // grass
     int num = *c_grass/UPPER_NUM_GRASS - *grass_sum; // 増加分
@@ -230,8 +240,9 @@ void reprduce(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum
     }
 }
 
+// ランダムに殺害 kind 0:grass 1:cow 2:lion
 void kill_in_field(long long field[FIELD_HEIGHT][FIELD_WIDTH][3], int kind){
-    // ランダムに殺害 kind 0:grass 1:cow 2:lion
+    // ランダムな位置から殺害対象を捜査、見つけ次第殺して帰る
     for(int y = rand()%FIELD_HEIGHT;y < FIELD_HEIGHT;y ++){
         for(int x = rand()%FIELD_WIDTH;x < FIELD_WIDTH;x ++){
             if(field[y][x][kind] > 0){
@@ -250,6 +261,7 @@ void kill_in_field(long long field[FIELD_HEIGHT][FIELD_WIDTH][3], int kind){
     }
 }
 
+// 餓死 １個体炭素数が一定値を下回らないように数を減らす
 void hunger(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     // cow
     int num = *cow_sum - *c_cows/UNDER_NUM_COW; // 減少分
@@ -265,6 +277,7 @@ void hunger(long long field[FIELD_HEIGHT][FIELD_WIDTH][3],long long *grass_sum, 
     }
 }
 
+// 老死
 void decay(long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     // cow の老衰
     *c_cows  -= DECAY_COW*(*cow_sum);
@@ -274,6 +287,7 @@ void decay(long long *grass_sum, long long *cow_sum, long long *lion_sum, long l
     *c_grass += DECAY_LION*(*lion_sum);
 }
 
+// length の長さのbarを現カーソル位置から表示
 void print_bar(FILE *fp,int length,const char *color){
     fprintf(fp,"%s",color);
     for(int i = 0;i < length;i ++){
@@ -282,37 +296,39 @@ void print_bar(FILE *fp,int length,const char *color){
     fprintf(fp,"\e[m");
 }
 
+// 食物連鎖のピラミッドを表示
 void print_pyramid(FILE *fp,long long *grass_sum, long long *cow_sum, long long *lion_sum, long long *c_grass, long long *c_cows, long long *c_lions){
     int sum = *grass_sum + *cow_sum + *lion_sum;
     int grass = *grass_sum * 150 / sum;
     int cow   = *cow_sum   * 150 / sum;
     int lion  = *lion_sum  * 150 / sum;
 
-    // lion のグラフ出力
     fprintf(fp,"\e[2E各個体数");
     fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
-    fprintf(fp,"    LION   :");print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
-    fprintf(fp,"%11lld:",*lion_sum);print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
-    fprintf(fp,"    COW    :");print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
-    fprintf(fp,"%11lld:",*cow_sum);print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
-    fprintf(fp,"   GRASS   :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");      print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
+    fprintf(fp,"    LION   :");      print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
+    fprintf(fp,"%11lld:",*lion_sum); print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");      print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");      print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
+    fprintf(fp,"    COW    :");      print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
+    fprintf(fp,"%11lld:",*cow_sum);  print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");      print_bar(fp,cow,  "\e[48;5;015m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");      print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
+    fprintf(fp,"   GRASS   :");      print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
     fprintf(fp,"%11lld:",*grass_sum);print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[2E");
+    fprintf(fp,"           :");      print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[2E");
     fprintf(fp,"各種族 炭素保有数:");
     fprintf(fp,"lion:%15lld  /",*c_lions);
     fprintf(fp,"cow:%15lld  /",*c_cows);
     fprintf(fp,"grass:%15lld\e[16F",*c_grass);
 }
 
+ // Ctrl^C対応　（file開けっ放しにしないように）
 void abrt(int sig);
 volatile sig_atomic_t e_flag = 0;
 
 int main(int argc, char const *argv[]){
+    // c_??? は炭素数　ほかは個体数
     long long grass   = INIT_NUM_GRASS;
     long long c_grass = (UPPER_NUM_GRASS+UNDER_NUM_GRASS)/2*INIT_NUM_GRASS;
     long long cows    = INIT_NUM_COW;
@@ -323,7 +339,7 @@ int main(int argc, char const *argv[]){
     FILE *fp = stdout;
 
     // フィールド field[y][x][0:grass, 1:cow, 2:lion]
-    // 各種族の個体数を値にする
+    // 各種族のその場所にいる個体数を値にする
     static long long field[FIELD_HEIGHT][FIELD_WIDTH][3] = {0};
 
     init_field(field);

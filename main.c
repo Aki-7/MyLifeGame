@@ -38,6 +38,8 @@
 
     一番下のmain関数内で個体のバランスをある時点で崩してみると面白いです
 
+    僕が悪いんですが、少しPCのスペック問われます
+
 */
 
 // random seed
@@ -96,7 +98,8 @@ void init_field(long long field[FIELD_HEIGHT][FIELD_WIDTH][3]){
 void print_field(FILE *fp,long long field[FIELD_HEIGHT][FIELD_WIDTH][3],int day){
 
     // 1000x1000は表示不可能なので中心のVIEW_HEIGHTxVIEW_WIDTHを表示
-    fprintf(fp,"\e[15E");
+    fprintf(fp,"\e[18E");
+    fprintf(fp,"中心の一部を表示中\e[1E");
     // 上辺
     fprintf(fp,"+-");
     for(long long x = 0;x < VIEW_WIDTH;x ++){
@@ -127,7 +130,7 @@ void print_field(FILE *fp,long long field[FIELD_HEIGHT][FIELD_WIDTH][3],int day)
     fprintf(fp,"-+\n");
 
     // 位置調整 
-    fprintf(fp,"\e[29F");
+    fprintf(fp,"\e[34F");
     fprintf(fp,"\e[%lldF",VIEW_HEIGHT);
 }
 
@@ -286,6 +289,7 @@ void print_pyramid(FILE *fp,long long *grass_sum, long long *cow_sum, long long 
     int lion  = *lion_sum  * 150 / sum;
 
     // lion のグラフ出力
+    fprintf(fp,"\e[2E各個体数");
     fprintf(fp,"\e[1E");
     fprintf(fp,"           :");print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
     fprintf(fp,"    LION   :");print_bar(fp,lion, "\e[48;5;009m");fprintf(fp,"\e[1E");
@@ -298,11 +302,11 @@ void print_pyramid(FILE *fp,long long *grass_sum, long long *cow_sum, long long 
     fprintf(fp,"           :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
     fprintf(fp,"   GRASS   :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
     fprintf(fp,"%11lld:",*grass_sum);print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
-    fprintf(fp,"           :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[1E");
+    fprintf(fp,"           :");print_bar(fp,grass,"\e[48;5;034m");fprintf(fp,"\e[2E");
     fprintf(fp,"各種族 炭素保有数:");
     fprintf(fp,"lion:%15lld  /",*c_lions);
     fprintf(fp,"cow:%15lld  /",*c_cows);
-    fprintf(fp,"grass:%15lld\e[13F",*c_grass);
+    fprintf(fp,"grass:%15lld\e[16F",*c_grass);
 }
 
 void abrt(int sig);
